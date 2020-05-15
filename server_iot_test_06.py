@@ -3,30 +3,30 @@ import array
 import dbus, dbus.mainloop.glib
 from gi.repository import GLib
 from example_advertisement import Advertisement
-from example_advertisement import register_ad_cb, register_ad_error_cb
+
 from example_gatt_server import Service, Characteristic
-# from example_gatt_server import Descriptor
-from example_gatt_server import register_app_cb, register_app_error_cb
 
-BLUEZ_SERVICE_NAME =           'org.bluez'
-DBUS_OM_IFACE =                'org.freedesktop.DBus.ObjectManager'
-LE_ADVERTISING_MANAGER_IFACE = 'org.bluez.LEAdvertisingManager1'
-GATT_MANAGER_IFACE =           'org.bluez.GattManager1'
-GATT_CHRC_IFACE =              'org.bluez.GattCharacteristic1'
-LOCAL_NAME =                   'thingsintouch-RAS3'
 
-CHRC_UUID_BASE = '12345678-1234-5678-1234-56789abcd'
-        # three more hex digits at the end make the address complete
-        # //+ 0x000 to 0x7ff            : reserved
-KEY_PREFIX = '8'
-VALUE_PREFIX = '9'
-        # //+"0x" + "8" + "00" to 0x8ff : 256 available keys
-        # //+"0x" + "9" + "00" to 0x9ff : 256 available values
-        # //+ 0xa00 to 0xfffe           : reserved
-        # // +0xfff :  service id
-SVC_UUID = CHRC_UUID_BASE+'fff'
-
+BLUEZ =           'org.bluez'
+DBUS =        'org.freedesktop.DBus.ObjectManager'
+LE_ADVERTISING = 'org.bluez.LEAdvertisingManager1'
+GATT =           'org.bluez.GattManager1'
+CHRC =              'org.bluez.GattCharacteristic1'
 mainloop = None
+
+def register_ad_cb():
+    print('Advertisement registered')
+
+def register_ad_error_cb(error):
+    print('Failed to register advertisement: ' + str(error))
+    mainloop.quit()
+
+def register_app_cb():
+    print('GATT application registered')
+
+def register_app_error_cb(error):
+    print('Failed to register application: ' + str(error))
+    mainloop.quit()
 
 #############################################################
 class TestCharacteristic(Characteristic):
@@ -69,37 +69,15 @@ class TestCharacteristic(Characteristic):
 ###############################################################
 
 class TestService(Service):
-    """
-    Dummy test service that provides characteristics and descriptors that
-    exercise various API functionality.
-    """
-    def __init__(self, bus, index):
-        Service.__init__(self, bus, index, SVC_UUID, True)
-        #self.valuesList = []
-        #self.keysList =[]
-        self.totalNumberOfConfigData = 9
-
-        for i in range(0,self.totalNumberOfConfigData*2,2):
-            
-            index = int(i/2)
-
-            hexString = index.to_bytes(((index.bit_length() + 7) // 8),"big").hex() 
-            prefix="00"  if index==0 else "" 
-
-            keyUUID     = CHRC_UUID_BASE    +KEY_PREFIX     +prefix+hexString
-            valueUUID   = CHRC_UUID_BASE    +VALUE_PREFIX   +prefix+hexString
-
-            print('key characteristic with index ' +
-                    str(i) + ' added: '+ keyUUID )
-            print('value characteristic with index ' + 
-                    str(i+1) + ' added: '+ valueUUID)
-
-            # Adding characteristic for key
-            self.add_characteristic(TestCharacteristic(bus, i,      keyUUID,    self))
-            # Adding characteristic for value
-            self.add_characteristic(TestCharacteristic(bus, i+1,    valueUUID,  self))
-            # self.valuesList.insert(index,(keyUUID,valueUUID))
-
+	"""
+	Dummy test service that provides characteristics and descriptors that
+	exercise various API functionality.
+	"""
+	def __init__(self, bus, index):
+		Service.__init__(self, bus, index,'12345678-1234-5678-1234-56789abcdfff', True)
+		charUUID     = '12345678-1234-5678-1234-56789abcd800'
+		print('characteristic added: '+ charUUID )
+		self.add_characteristic(TestCharacteristic(bus, 0, charUUID,self))
 ##################################################################
 class Application(dbus.service.Object):
     def __init__(self, bus):
@@ -115,7 +93,7 @@ class Application(dbus.service.Object):
         # print('appended service --- - ', service)
         # print('  service properties - ', service.get_properties())
 
-    @dbus.service.method(DBUS_OM_IFACE, out_signature='a{oa{sa{sv}}}')
+    @dbus.service.method(DBUS, out_signature='a{oa{sa{sv}}}')
     def GetManagedObjects(self):
         response = {}
         for service in self.services:
@@ -135,17 +113,17 @@ class IoTApplication(Application):
 class IoTAdvertisement(Advertisement):
     def __init__(self, bus, index):
         Advertisement.__init__(self, bus, index, 'peripheral')
-        self.add_service_uuid(SVC_UUID)
-        self.add_local_name(LOCAL_NAME)
+        self.add_service_uuid('12345678-1234-5678-1234-56789abcdfff')
+        self.add_local_name('thingsintouch-RAS3')
         self.include_tx_power = True
 
 #########################################################################
 def find_adapter(bus):
-    remote_om = dbus.Interface(bus.get_object(BLUEZ_SERVICE_NAME, '/'),
-                               DBUS_OM_IFACE)
+    remote_om = dbus.Interface(bus.get_object(BLUEZ, '/'),
+                               DBUS)
     objects = remote_om.GetManagedObjects()
     for o, props in objects.items():
-        if LE_ADVERTISING_MANAGER_IFACE in props and GATT_MANAGER_IFACE in props:
+        if LE_ADVERTISING in props and GATT in props:
             return o
         print('Skip adapter:', o)
     return None
@@ -168,15 +146,26 @@ def main():
         return
 
     service_manager = dbus.Interface(
-                                bus.get_object(BLUEZ_SERVICE_NAME, adapter),
-                                GATT_MANAGER_IFACE)
-    ad_manager = dbus.Interface(bus.get_object(BLUEZ_SERVICE_NAME, adapter),
-                                LE_ADVERTISING_MANAGER_IFACE)
+                                bus.get_object(BLUEZ, adapter),
+                                GATT)
+    ad_manager = dbus.Interface(bus.get_object(BLUEZ, adapter),
+                                LE_ADVERTISING)
 
     # print('service_manager - ',service_manager)
     # print('ad_manager', ad_manager)
 
-    app = IoTApplication(bus)
+    appPath = '/'
+    app = dbus.service(bus,'/')
+    
+    servicePath = '/org/bluez/example/service0'
+    serviceUUID = '12345678-1234-5678-1234-56789abcdfff'
+    servicePrimary = True
+    service = dbus.service.Object(bus, servicePath)
+
+    appServices = []
+    appServices.append([servicePath,serviceUUID,servicePrimary])
+    
+    #app = IoTApplication(bus)
     adv = IoTAdvertisement(bus, 0)
 
     mainloop = GLib.MainLoop()
@@ -185,17 +174,17 @@ def main():
     # print('IoTApp Services - ',app.services)
 
 
-    service_manager.RegisterApplication(app.get_path(), {},
+    service_manager.RegisterApplication('/', {},
                                         reply_handler=register_app_cb,
                                         error_handler=register_app_error_cb)
-                                        
+		# the error handler quits the mainloop: mainloop.quit
+
     ad_manager.RegisterAdvertisement(adv.get_path(), {},
                                      reply_handler=register_ad_cb,
                                      error_handler=register_ad_error_cb)
     try:
         mainloop.run()
     except KeyboardInterrupt:
-
         adv.Release()
 
 if __name__ == '__main__':
