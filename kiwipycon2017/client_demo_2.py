@@ -17,17 +17,24 @@ server_object = bus.get(BUS)
 loop = GLib.MainLoop()
 INTERVAL = 2
 
-def make_method_call_client_2():
+def client_1():
     "Server returns a time stamp."
     reply = server_object.get_time_stamp()
     print("Returned data is of type: {}".format(type(reply)))
     print("Time stamp received from server: {}".format(reply))
     return True
 
+def client_2():
+    print("/n")
+    server_object.server_no_args()
+    return True
+
 if __name__=="__main__":
     print("Starting Client Demo 2...")
-    GLib.timeout_add_seconds(interval=INTERVAL,
-                             function=make_method_call_client_2)
+    GLib.timeout_add_seconds(interval=2,
+                             function=client_1)
+    GLib.timeout_add_seconds(interval=5,
+                             function=client_2)                           
     loop.run()
 
 """

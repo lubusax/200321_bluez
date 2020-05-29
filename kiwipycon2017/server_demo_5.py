@@ -25,13 +25,13 @@ import random
 
 # Variables / Constants / Instantiation...
 bus = SessionBus()  # SystemBus
-BUS = "org.example.demo.test"
+wellKnownBusName = "org.example.demo.test"
 loop = GLib.MainLoop()
 INTERVAL = 2
 message_count = 0
 
 
-class DBusService_XML():
+class busObject():
     """
     DBus Service XML definition. 
     type="i" for integer, "s" string, "d" double, "as" list of string data.
@@ -44,20 +44,20 @@ class DBusService_XML():
             </signal>
         </interface>
     </node>
-    """.format(BUS)
+    """.format(wellKnownBusName)
     integer_signal = signal()
 
 def timer():
     "Emit a random integer each call."
-    random_integer = random.randint(0, 100)
-    print("Random integer emitted: {}".format(random_integer))
+    random_integer = random.randint(0, 5)
+    print("Random integer emitted: {} {}".format(random_integer, time.time()))
     emit.integer_signal(random_integer)
     return True       
 
 if __name__ == "__main__":
     print("Starting Server Demo 5...")
-    emit = DBusService_XML()
-    bus.publish(BUS, emit)
+    emit = busObject()
+    bus.publish(wellKnownBusName, emit)
 
     GLib.timeout_add_seconds(interval=INTERVAL, function=timer)
     loop.run()

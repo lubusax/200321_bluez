@@ -9,6 +9,7 @@
 # Importing...
 from pydbus import SessionBus  # from pydbus import SystemBus
 from gi.repository import GLib
+import time
 # Instantiation, Constants, Variables...
 bus = SessionBus()
 BUS = "org.example.demo.test"
@@ -19,7 +20,9 @@ def cb_signal_emission(*args):
     # Data is in args[4]. The first item in a tuple. i.e. args[4][0]
     # print(args)
     random_number = args[4][0]
-    print("Client received random number: {}".format(random_number))
+    print("Client received random number: {} {}".format(random_number, time.time()))
+    if random_number == 4:
+        loop.quit()
 
 if __name__=="__main__":
     print("Starting. Client Demo 5..")

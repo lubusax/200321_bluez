@@ -51,5 +51,6 @@ class DBusService_XML():
 
 if __name__ == "__main__":
     print("Starting Server Demo 1...")
+    print(help(bus.publish))
     bus.publish(BUS, DBusService_XML())
     loop.run()
