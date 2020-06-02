@@ -21,6 +21,7 @@ parser = OptionParser(option_list=option_list)
 adapter_path = bluezutils.find_adapter(options.dev_id).object_path
 adapter = dbus.Interface(bus.get_object("org.bluez", adapter_path),
 					"org.freedesktop.DBus.Properties")
+print ('adapter ', adapter)
 
 if (len(args) < 1):
 	print("Usage: %s <command>" % (sys.argv[0]))
