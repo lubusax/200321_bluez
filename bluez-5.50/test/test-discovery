@@ -152,7 +152,7 @@ if __name__ == '__main__':
 	om = dbus.Interface(bus.get_object("org.bluez", "/"),
 				"org.freedesktop.DBus.ObjectManager")
 	objects = om.GetManagedObjects()
-	for path, interfaces in objects.iteritems():
+	for path, interfaces in objects.items():
 		if "org.bluez.Device1" in interfaces:
 			devices[path] = interfaces["org.bluez.Device1"]
 
