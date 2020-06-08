@@ -58,7 +58,21 @@ class Application(dbus.service.Object):
 
     def add_service(self, service):
         self.services.append(service)
-
+		# for key in properties.keys():
+		# 	value = properties[key]
+		# 	if (key == "UUIDs"):
+		# 		list = extract_uuids(value)
+		# 		print("        %s = %s" % (key, list))
+		# 	elif (key == "Class"):
+		# 		print("        %s = 0x%06x" % (key, value))
+		# 	elif (key == "Vendor"):
+		# 		print("        %s = 0x%04x" % (key, value))
+		# 	elif (key == "Product"):
+		# 		print("        %s = 0x%04x" % (key, value))
+		# 	elif (key == "Version"):
+		# 		print("        %s = 0x%04x" % (key, value))
+		# 	else:
+		# 		print("        %s = %s" % (key, value))
     @dbus.service.method(DBUS_OM_IFACE, out_signature='a{oa{sa{sv}}}')
     def GetManagedObjects(self):
         response = {}
