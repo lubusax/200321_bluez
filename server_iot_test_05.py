@@ -202,7 +202,7 @@ def main():
     #DiscoverableTimeout
 
     app = IoTApplication(bus)
-    printAppAttributes(app)
+    #printAppAttributes(app)
 
 
   
