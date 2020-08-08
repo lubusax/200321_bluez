@@ -95,9 +95,9 @@ class Service(dbus.service.Object):
                 GATT_SERVICE_IFACE: {
                         'UUID': self.uuid,
                         'Primary': self.primary,
-                        'Characteristics': dbus.Array(
+                        'Characteristics': [dbus.Array(
                                 self.get_characteristic_paths(),
-                                signature='o')
+                                signature='o')]
                 }
         }
 

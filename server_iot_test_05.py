@@ -5,13 +5,18 @@ from gi.repository import GLib
 from example_advertisement import Advertisement
 from example_advertisement import register_ad_cb, register_ad_error_cb
 from example_gatt_server import Service, Characteristic
+from pprint import PrettyPrinter
+import time
+from array import array
 
+prettyPrint = PrettyPrinter(indent=1).pprint
 
 BLUEZ_SERVICE_NAME =           'org.bluez'
 DBUS_OM_IFACE =                'org.freedesktop.DBus.ObjectManager'
 LE_ADVERTISING_MANAGER_IFACE = 'org.bluez.LEAdvertisingManager1'
 GATT_MANAGER_IFACE =           'org.bluez.GattManager1'
 GATT_CHRC_IFACE =              'org.bluez.GattCharacteristic1'
+ADAPTER_IFACE =                'org.Bluez.Adapter1'
 
 def register_app_cb():
     print('GATT application registered')
@@ -45,7 +50,7 @@ class TestCharacteristic(Characteristic):
                 self, bus, index,
                 uuid,
                 #['read', 'write', 'writable-auxiliaries', 'notify'],
-                ['write'],
+                ['read','write'],
                 service)
         self.value = []
         self.notifying = False
@@ -53,8 +58,13 @@ class TestCharacteristic(Characteristic):
         #self.service= service
 
     def ReadValue(self, options):
+        self.value= time.asctime()
         print('TestCharacteristic Read: ' + repr(self.value))
-        return self.value
+        returnValue = bytearray()
+        returnValue.extend(map(ord, self.value))
+        print(returnValue)
+        print(type(returnValue))
+        return returnValue
 
     def WriteValue(self, value, options):
         valueString = ""
@@ -80,13 +90,14 @@ class TestService(Service):
 	def __init__(self, bus, index):
 		Service.__init__(self, bus, index,'12345678-1234-5678-1234-56789abcdfff', True)
 		charUUID     = '12345678-1234-5678-1234-56789abcd800'
-		print('characteristic added: '+ charUUID )
+		#print('characteristic added: '+ charUUID )
 		self.add_characteristic(TestCharacteristic(bus, 0, charUUID,self))
 ##################################################################
 class Application(dbus.service.Object):
     def __init__(self, bus):
         self.path = '/'
         self.services = []
+        #print ("*************calling_service object init for APPLICATION")
         dbus.service.Object.__init__(self, bus, self.path)
 
     def get_path(self):
@@ -100,11 +111,13 @@ class Application(dbus.service.Object):
     @dbus.service.method(DBUS_OM_IFACE, out_signature='a{oa{sa{sv}}}')
     def GetManagedObjects(self):
         response = {}
+        #print("was here ---"*10)
         for service in self.services:
             response[service.get_path()] = service.get_properties()
             chrcs = service.get_characteristics()
             for chrc in chrcs:
                 response[chrc.get_path()] = chrc.get_properties()
+        print(response)
         return response
 
 ###################################################################
@@ -118,7 +131,7 @@ class IoTAdvertisement(Advertisement):
     def __init__(self, bus, index):
         Advertisement.__init__(self, bus, index, 'peripheral')
         self.add_service_uuid('12345678-1234-5678-1234-56789abcdfff')
-        self.add_local_name('thingsintouch-RAS3')
+        self.add_local_name('thingsintouch-Gate')
         self.include_tx_power = True
 
 #########################################################################
@@ -134,13 +147,36 @@ def find_adapter(bus):
 
 
 ########################################################################
+def printAppAttributes(app):
+    print("#"*90)
+    prettyPrint("Application Path: %s " % app.get_path())
+    prettyPrint("app.__dict__.keys(): %s" % app.__dict__.keys())
+    prettyPrint("app._object_path: %s " % app._object_path)    
+    prettyPrint("app._name: %s " % app._name)    
+    prettyPrint("app.services: %s " % app.services)
+    prettyPrint("app._connection: %s " % app._connection)
+    prettyPrint("app.path: %s " % app.path)
+    prettyPrint("app._locations: %s " % app._locations)
+    prettyPrint("app._locations_lock: %s " % app._locations_lock)
+    prettyPrint("app._fallback: %s " % app._fallback)
+    print("x"*80)
+    print("app.GetManagedObjects(): " )
+    prettyPrint( app.GetManagedObjects())
+    print("#"*90) 
 
-
+def printAdapterInfos(adapter):
+    print("#"*90)
+    print("printAdapterInfos: " )
+    prettyPrint(adapter)
+    print("#"*90)
+     
 def main():
     global mainloop
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
     bus = dbus.SystemBus()
     adapter = find_adapter(bus)
+
+    #printAdapterInfos(adapter)
 
     # print('bus - ', bus)
     # print('adapter - ',adapter)
@@ -152,27 +188,40 @@ def main():
     service_manager = dbus.Interface(
                                 bus.get_object(BLUEZ_SERVICE_NAME, adapter),
                                 GATT_MANAGER_IFACE)
-    ad_manager = dbus.Interface(bus.get_object(BLUEZ_SERVICE_NAME, adapter),
+    advertising_manager = dbus.Interface(bus.get_object(BLUEZ_SERVICE_NAME, adapter),
                                 LE_ADVERTISING_MANAGER_IFACE)
+    adapter_interface = dbus.Interface(bus.get_object(BLUEZ_SERVICE_NAME, adapter),
+                                ADAPTER_IFACE)                            
 
     # print('service_manager - ',service_manager)
     # print('ad_manager', ad_manager)
 
+    print("discoverable ", adapter_interface.Discoverable)
+
+    #adapter_interface.Discoverable = True
+    #DiscoverableTimeout
+
     app = IoTApplication(bus)
+    printAppAttributes(app)
+
+
+  
+
+    #help(app)
     adv = IoTAdvertisement(bus, 0)
 
     mainloop = GLib.MainLoop()
 
     # print('mainloop - ', mainloop)
-    print('IoTApp Services - ',app.get_path())
-
-
+    # service_manager.RegisterApplication('/', {},
+    #                                     reply_handler=register_app_cb,
+    #                                     error_handler=register_app_error_cb)
     service_manager.RegisterApplication('/', {},
-                                        reply_handler=register_app_cb,
-                                        error_handler=register_app_error_cb)
+                                    ignore_reply=True)
+
 		# the error handler quits the mainloop: mainloop.quit
 
-    ad_manager.RegisterAdvertisement(adv.get_path(), {},
+    advertising_manager.RegisterAdvertisement(adv.get_path(), {},
                                      reply_handler=register_ad_cb,
                                      error_handler=register_ad_error_cb)
     try:

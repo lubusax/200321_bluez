@@ -686,7 +686,6 @@ static void create_services_one(void)
 	printf("Registered service: %s\n", service_path);
 }
 
-
 static void create_services_two(void)
 {
 	char *service_path;
