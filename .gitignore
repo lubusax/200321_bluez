@@ -2,3 +2,4 @@
 example_advertisement.pyc
 example_gatt_server.pyc
 *.pyc
+__pycache__/example_gatt_server.cpython-35.pyc
