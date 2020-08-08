@@ -130,8 +130,8 @@ class IoTApplication(Application):
 class IoTAdvertisement(Advertisement):
     def __init__(self, bus, index):
         Advertisement.__init__(self, bus, index, 'peripheral')
-        self.add_service_uuid('12345678-1234-5678-1234-56789abcdfff')
-        self.add_local_name('thingsintouch-Gate')
+        self.add_service_uuid('5468696e-6773-496e-546f-756368000100') # ThingsInTouch - Device ID
+        self.add_local_name('ThingsInTouch-Gate')
         self.include_tx_power = True
 
 #########################################################################
