@@ -1,11 +1,10 @@
 import sys
-# import array
-import dbus, dbus.mainloop.glib
-from gi.repository import GLib
+import dbus 
+from gi.repository import GLib, GObject
 from genericClassesBLE import Application, Advertisement, Service, Characteristic
 from pprint import PrettyPrinter
 import time
-#from array import array
+from dbus.mainloop.glib import DBusGMainLoop
 
 prettyPrint = PrettyPrinter(indent=1).pprint
 
@@ -16,77 +15,114 @@ GATT_MANAGER_IFACE =           'org.bluez.GattManager1'
 GATT_CHRC_IFACE =              'org.bluez.GattCharacteristic1'
 ADAPTER_IFACE =                'org.Bluez.Adapter1'
 
-HCI0_PATH =                    '/org/bluez/hci0'
+PATH_HCI0 =                    '/org/bluez/hci0'
 
-GATESETUP_SERVICE_UUID = '5468696e-6773-496e-546f-756368000100' # ThingsInTouch - Gate Setup Service
+UUID_GATESETUP_SERVICE      = '5468696e-6773-496e-546f-756368000100'
+# ThingsInTouch Services        go from 0x001000 to 0x001FFF
+# ThingsInTouch Characteristics go from 0x100000 to 0x1FFFFF
+
+UUID_READ_WRITE_TEST_CHARACTERISTIC = '5468696e-6773-496e-546f-756368100000'
+UUID_NOTIFY_TEST_CHARACTERISTIC     = '5468696e-6773-496e-546f-756368100001'
 
 DEVICE_NAME = 'ThingsInTouch-Gate-01'
 
-class TestCharacteristic(Characteristic):
+class ReadAndWriteTestCharacteristic(Characteristic):
     """
-    Dummy test characteristic. Allows writing arbitrary bytes to its value, and
-    contains "extended properties", as well as a test descriptor.
+    Dummy test characteristic. Gives "now" while read. And can be written to
     """
 
-    def __init__(self, bus, index, uuid, service):
-
-        Characteristic.__init__(
-                self, bus, index,
-                uuid,
-                #['read', 'write', 'writable-auxiliaries', 'notify'],
-                ['read','write'],
+    def __init__(self, service):
+        self.bus = dbus.SystemBus()
+        self.uuid = UUID_READ_WRITE_TEST_CHARACTERISTIC
+        self.index = self.uuid[-6:]
+        Characteristic.__init__(self, self.bus, self.index,self.uuid,        
+                ['read','write'], #['read', 'write', 'writable-auxiliaries', 'notify'],
                 service)
         self.value = []
         self.notifying = False
-        self.index = index
-        #self.service= service
 
     def ReadValue(self, options):
-        self.value= time.asctime()
-        print('TestCharacteristic Read: ' + repr(self.value))
-        returnValue = bytearray()
-        returnValue.extend(map(ord, self.value))
-        print(returnValue)
-        print(type(returnValue))
-        return returnValue
+        now = time.asctime()
+        print("TestCharacteristic Read: {}".format(now))
+        self.value = now.encode()
+        #print(type(self.value))
+        return self.value
 
     def WriteValue(self, value, options):
-        valueString = ""
+        valueString =""
         for i in range(0,len(value)):
             valueString+= str(value[i])
-        print('TestCharacteristic on index ' +
-        str(self.index) + ' was written : '+valueString)
-       
+        print('TestCharacteristic on index {} was written : {}'.format(self.index, valueString))      
         self.value = value
         self.valueString = valueString
-        # if (self.index % 2) == 0:
-        #     self.service.keysList.insert(self.index/2) = valueString
-        # else:
-        #     self.service.valuesList.insert((self.index-1)/2) = valueString
+
+class NotifyTestCharacteristic(Characteristic):
+    """
+    Fake Battery Level characteristic. The battery level is drained by 2 points
+    every "self.period" milliseconds.
+
+    """
+
+    def __init__(self, service):
+        self.bus = dbus.SystemBus()
+        self.uuid = UUID_NOTIFY_TEST_CHARACTERISTIC
+        self.index = self.uuid[-6:]
+        Characteristic.__init__( self, self.bus, self.index, self.uuid, ['read', 'notify'], service)
+        self.notifying = False
+        self.battery_lvl = 100
+        self.period = 1000 # in ms
+        GObject.timeout_add(self.period, self.drain_battery)
+
+    def notify_battery_level(self):
+        if not self.notifying: return
+        self.PropertiesChanged( GATT_CHRC_IFACE, { 'Value': [dbus.Byte(self.battery_lvl)] }, [])
+
+    def drain_battery(self):
+        if self.battery_lvl > 0:    self.battery_lvl -= 2
+        else:                       self.battery_lvl = 100
+        print('Battery Level drained: ' + repr(self.battery_lvl))
+        if self.notifying:          self.notify_battery_level()
+        return True
+
+    def ReadValue(self, options):
+        print('Battery Level read: ' + repr(self.battery_lvl))
+        return [dbus.Byte(self.battery_lvl)]
+
+    def StartNotify(self):
+        if self.notifying:
+            print('Already notifying, nothing to do')
+        else:
+            self.notifying = True
+            self.notify_battery_level()
+
+    def StopNotify(self):
+        if self.notifying:
+            self.notifying = False
+        else:
+            print('Not notifying, nothing to do')
 
 class GateSetupService(Service):
-	"""
+    """
     Service that exposes Gate Device Information and allows for the Setup
-	"""
-	def __init__(self, bus, index):
-		Service.__init__(self, bus, index, GATESETUP_SERVICE_UUID, True)
-		charUUID     = '12345678-1234-5678-1234-56789abcd800'
-		#print('characteristic added: '+ charUUID )
-		self.add_characteristic(TestCharacteristic(bus, 0, charUUID,self))
+    """
+    def __init__(self, bus):
+        Service.__init__(self, bus, UUID_GATESETUP_SERVICE)
+        self.add_characteristic(ReadAndWriteTestCharacteristic(self))
+        self.add_characteristic(NotifyTestCharacteristic(self))
 
 class GateSetupApplication(Application):
     def __init__(self):
-        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+        DBusGMainLoop(set_as_default=True)
         bus = dbus.SystemBus()
         Application.__init__(self, bus)
-        self.add_service(GateSetupService(bus, 0))
+        self.add_service(GateSetupService(bus))
 
 class GateSetupAdvertisement(Advertisement):
     def __init__(self):
         bus = dbus.SystemBus()
         index = 0
         Advertisement.__init__(self, bus, index, 'peripheral')
-        self.add_service_uuid( GATESETUP_SERVICE_UUID) 
+        self.add_service_uuid( UUID_GATESETUP_SERVICE) 
         self.add_local_name( DEVICE_NAME)
         self.include_tx_power = True
 

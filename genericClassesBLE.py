@@ -144,12 +144,13 @@ class Service(dbus.service.Object):
     org.bluez.GattService1 interface implementation
     """
 
-    def __init__(self, bus, index, uuid, primary):
-        self.PATH_BASE = PATH_SERVICE
-        self.path = self.PATH_BASE + str(index)
-        self.bus = bus
+    def __init__(self, bus, uuid, primary= True):
         self.uuid = uuid
-        self.primary = primary # usually it is True
+        self.index = self.uuid[-6:]        
+        self.path = PATH_SERVICE + str(self.index)
+        self.bus = bus
+
+        self.primary = primary
         self.characteristics = []
         dbus.service.Object.__init__(self, bus, self.path)
 
