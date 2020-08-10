@@ -35,7 +35,6 @@ def generic_error_cb(error):
     print('D-Bus call failed: ' + str(error))
     mainloop.quit()
 
-
 def body_sensor_val_to_str(val):
     if val == 0:
         return 'Other'
@@ -54,7 +53,6 @@ def body_sensor_val_to_str(val):
 
     return 'Reserved value'
 
-
 def sensor_contact_val_to_str(val):
     if val == 0 or val == 1:
         return 'not supported'
@@ -65,7 +63,6 @@ def sensor_contact_val_to_str(val):
 
     return 'invalid value'
 
-
 def body_sensor_val_cb(value):
     if len(value) != 1:
         print('Invalid body sensor location value: ' + repr(value))
@@ -73,10 +70,8 @@ def body_sensor_val_cb(value):
 
     print('Body sensor location value: ' + body_sensor_val_to_str(value[0]))
 
-
 def hr_msrmt_start_notify_cb():
     print('HR Measurement notifications enabled')
-
 
 def hr_msrmt_changed_cb(iface, changed_props, invalidated_props):
     if iface != GATT_CHRC_IFACE:
@@ -110,7 +105,6 @@ def hr_msrmt_changed_cb(iface, changed_props, invalidated_props):
     if ee_status:
         print('\tEnergy Expended: ' + str(int(value[next_ind])))
 
-
 def start_client():
     # Read the Body Sensor Location value and print it asynchronously.
     body_snsr_loc_chrc[0].ReadValue({}, reply_handler=body_sensor_val_cb,
@@ -127,7 +121,6 @@ def start_client():
     hr_msrmt_chrc[0].StartNotify(reply_handler=hr_msrmt_start_notify_cb,
                                  error_handler=generic_error_cb,
                                  dbus_interface=GATT_CHRC_IFACE)
-
 
 def process_chrc(chrc_path):
     chrc = bus.get_object(BLUEZ_SERVICE_NAME, chrc_path)
@@ -150,7 +143,6 @@ def process_chrc(chrc_path):
 
     return True
 
-
 def process_hr_service(service_path, chrc_paths):
     service = bus.get_object(BLUEZ_SERVICE_NAME, service_path)
     service_props = service.GetAll(GATT_SERVICE_IFACE,
@@ -172,7 +164,6 @@ def process_hr_service(service_path, chrc_paths):
 
     return True
 
-
 def interfaces_removed_cb(object_path, interfaces):
     if not hr_service:
         return
@@ -180,7 +171,6 @@ def interfaces_removed_cb(object_path, interfaces):
     if object_path == hr_service[2]:
         print('Service was removed')
         mainloop.quit()
-
 
 def main():
     # Set up the main loop.
@@ -203,7 +193,7 @@ def main():
             continue
         chrcs.append(path)
 
-    # List sevices found
+    # List services found
     for path, interfaces in objects.items():
         if GATT_SERVICE_IFACE not in interfaces.keys():
             continue
