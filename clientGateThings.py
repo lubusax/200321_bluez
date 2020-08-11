@@ -58,29 +58,31 @@ def printInfo(prefix, properties, compact=False):
 				print("    %s = %s" % (key, properties[key]))
 
 def aliasFromThingsInTouch(alias):
-	if alias[:len(ALIAS_BEGINS_WITH)] == ALIAS_BEGINS_WITH:
+	if alias[:12] == ALIAS_BEGINS_WITH:
 		return True
 	else:
 		return False
 
 def interfaces_added(path, interfaces):
   newDevice = interfaces["org.bluez.Device1"]
-  #prettyPrint(interfaces)
-  #printInfo("NEW -->", newDevice)
-
-  thing 					= bus.get_object( BLUEZ, path)
-  deviceInterface  = dbus.Interface( thing,   IFACE_DEVICE)
-  deviceProps = thing.GetAll(IFACE_DEVICE, dbus_interface=IFACE_PROPERTIES_DBUS)
-  print("Device Properties")
-  prettyPrint(deviceProps)
-  
-  #print("path:", path)
-
+  print("alias ..... new device",newDevice["Alias"] )
   if aliasFromThingsInTouch(newDevice["Alias"]):
+    prettyPrint(interfaces)
+    #printInfo("NEW -->", newDevice)
+
+    thing 					= bus.get_object( BLUEZ, path)
+    #help(thing)
+    deviceInterface  = dbus.Interface( thing,   IFACE_DEVICE)
+    deviceProps = thing.GetAll(IFACE_DEVICE, dbus_interface=IFACE_PROPERTIES_DBUS)
+    print("Device Properties")
+    prettyPrint(deviceProps)
+    
+    #print("path:", path)
+
     thingsDetected.append(Thing(path, interfaces))
-    print("connect ------------------")
-    deviceInterface.Pair()
-    print("connected - connected - "*5)
+   # print("connect ------------------")
+  #  deviceInterface.Connect(path, dbus_interface=IFACE_DEVICE)
+    #print("connected - connected - "*5)
   
   printInfo("NEW -->", newDevice)
   getChrcsAndServices()
@@ -128,14 +130,16 @@ if __name__ == '__main__':
   om = dbus.Interface(bus.get_object(BLUEZ , "/"), IFACE_OBJECT_MANAGER_DBUS)
 
   objects = om.GetManagedObjects()
+  #prettyPrint(objects)
   for path, interfaces in objects.items():
     if "org.bluez.Device1" in interfaces:
-      print("known")
-      #adapter_interface.RemoveDevice(path)
+      #print("known")
+      #prettyPrint(interfaces)
+      adapter_interface.RemoveDevice(path)
 
   scan_filter = dict()
   scan_filter["Transport"] 	= "le"
-  scan_filter['UUIDs'] 			= [UUID_GATESETUP_SERVICE]
+  #scan_filter['UUIDs'] 			= [UUID_GATESETUP_SERVICE]
 
   adapter_interface.SetDiscoveryFilter(scan_filter)
   adapter_interface.StartDiscovery()
