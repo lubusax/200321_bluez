@@ -130,19 +130,21 @@ if __name__ == '__main__':
   om = dbus.Interface(bus.get_object(BLUEZ , "/"), IFACE_OBJECT_MANAGER_DBUS)
 
   objects = om.GetManagedObjects()
-  #prettyPrint(objects)
+  prettyPrint(objects)
   for path, interfaces in objects.items():
     if "org.bluez.Device1" in interfaces:
-      #print("known")
+      print("known")
       #prettyPrint(interfaces)
-      adapter_interface.RemoveDevice(path)
+      #adapter_interface.RemoveDevice(path)
 
   scan_filter = dict()
   scan_filter["Transport"] 	= "le"
   #scan_filter['UUIDs'] 			= [UUID_GATESETUP_SERVICE]
-
+  help(adapter_interface)
+  
   adapter_interface.SetDiscoveryFilter(scan_filter)
-  adapter_interface.StartDiscovery()
+  #adapter_interface.SetDiscoveryFilter(scan_filter)
+  #adapter_interface.StartDiscovery()
 
   mainloop = GObject.MainLoop()
   mainloop.run()
