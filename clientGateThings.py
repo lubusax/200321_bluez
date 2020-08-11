@@ -58,14 +58,18 @@ def printInfo(prefix, properties, compact=False):
 				print("    %s = %s" % (key, properties[key]))
 
 def aliasFromThingsInTouch(alias):
-	if alias[:12] == ALIAS_BEGINS_WITH:
-		return True
-	else:
-		return False
+  print("aliasFromThingsInTouch")
+  #print(alias[:13])
+  #print(ALIAS_BEGINS_WITH)
+
+  if alias[:13] == ALIAS_BEGINS_WITH:
+    return True
+  else:
+    return False
 
 def interfaces_added(path, interfaces):
   newDevice = interfaces["org.bluez.Device1"]
-  print("alias ..... new device",newDevice["Alias"] )
+  #print("alias ..... new device",newDevice["Alias"] )
   if aliasFromThingsInTouch(newDevice["Alias"]):
     prettyPrint(interfaces)
     #printInfo("NEW -->", newDevice)
@@ -84,11 +88,12 @@ def interfaces_added(path, interfaces):
   #  deviceInterface.Connect(path, dbus_interface=IFACE_DEVICE)
     #print("connected - connected - "*5)
   
-  printInfo("NEW -->", newDevice)
-  getChrcsAndServices()
+    printInfo("NEW -->", newDevice)
+    getChrcsAndServices()
 
   #print( newDevice["Alias"])
   #printManagedObjects()
+
 def getChrcsAndServices():
   om = dbus.Interface(bus.get_object(BLUEZ, '/'), IFACE_OBJECT_MANAGER_DBUS)
   objects = om.GetManagedObjects()
@@ -133,9 +138,7 @@ if __name__ == '__main__':
   prettyPrint(objects)
   for path, interfaces in objects.items():
     if "org.bluez.Device1" in interfaces:
-      print("known")
-      #prettyPrint(interfaces)
-      #adapter_interface.RemoveDevice(path)
+      pass
 
   scan_filter = dict()
   scan_filter["Transport"] 	= "le"
