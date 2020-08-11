@@ -431,19 +431,19 @@ class BatteryLevelCharacteristic(Characteristic):
         self.notifying = False
 
 
-# class TestService(Service):
-    #     """
-    #     Dummy test service that provides characteristics and descriptors that
-    #     exercise various API functionality.
+class TestService(Service):
+    """
+    Dummy test service that provides characteristics and descriptors that
+    exercise various API functionality.
 
-    #     """
-    #     TEST_SVC_UUID = '12345678-1234-5678-1234-56789abcdef0'
+    """
+    TEST_SVC_UUID = '12345678-1234-5678-1234-56789abcdef0'
 
-    #     def __init__(self, bus, index):
-    #         Service.__init__(self, bus, index, self.TEST_SVC_UUID, True)
-    #         self.add_characteristic(TestCharacteristic(bus, 0, self))
-    #         self.add_characteristic(TestEncryptCharacteristic(bus, 1, self))
-    #         self.add_characteristic(TestSecureCharacteristic(bus, 2, self))
+    def __init__(self, bus, index):
+        Service.__init__(self, bus, index, self.TEST_SVC_UUID, True)
+        self.add_characteristic(TestCharacteristic(bus, 0, self))
+        self.add_characteristic(TestEncryptCharacteristic(bus, 1, self))
+        self.add_characteristic(TestSecureCharacteristic(bus, 2, self))
 
     # class TestCharacteristic(Characteristic):
     #     """
@@ -610,8 +610,7 @@ class BatteryLevelCharacteristic(Characteristic):
     #                 dbus.Byte('T'), dbus.Byte('e'), dbus.Byte('s'), dbus.Byte('t')
     #         ]
 
-def register_app_cb():
-    print('GATT application registered')
+def register_app_cb(): print('GATT application registered')
 
 
 def register_app_error_cb(error):
