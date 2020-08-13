@@ -181,9 +181,11 @@ if __name__ == '__main__':
   scan_filter = dict()
   scan_filter["Transport"] 	= "le"
   #scan_filter['UUIDs'] 			= [UUID_GATESETUP_SERVICE]
-
+  help(adapter_interface)
+  
   adapter_interface.SetDiscoveryFilter(scan_filter)
-  adapter_interface.StartDiscovery()
+  #adapter_interface.SetDiscoveryFilter(scan_filter)
+  #adapter_interface.StartDiscovery()
 
   mainloop = GObject.MainLoop()
   mainloop.run()
