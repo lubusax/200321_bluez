@@ -2,7 +2,7 @@
 
 #from __future__ import absolute_import, print_function, unicode_literals
 
-from optparse import OptionParser, make_option
+#from optparse import OptionParser, make_option
 import dbus
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GObject
@@ -72,43 +72,54 @@ def connectDeviceIfThingsInTouch(path, interfaces):
 
 
 def interfaces_added(path, interfaces):
-  newDevice = interfaces[IFACE_DEVICE]
-  if aliasFromThingsInTouch(newDevice["Alias"]):
-    print("-#"*56)
-    print("interfaces added -- "*6)
-    now = time.asctime()
-    print("interfaces added: {}".format(now))
-    bus 							= dbus.SystemBus()
-    #prettyPrint(interfaces)
-    #printInfo("NEW -->", newDevice)
+  #prettyPrint(interfaces)
+  try: 
+    newDevice = interfaces[IFACE_DEVICE]
 
-    thing 					= bus.get_object( BLUEZ, path)
-    #help(thing)
-    deviceInterface  = dbus.Interface( thing,   IFACE_DEVICE)
-    deviceProps = thing.GetAll(IFACE_DEVICE, dbus_interface=IFACE_PROPERTIES_DBUS)
-    print("Device Properties")
-    #prettyPrint(deviceProps)
+    if aliasFromThingsInTouch(newDevice["Alias"]):
+      print("-#"*56)
+      #print(path)
+      #prettyPrint(interfaces)
+      newThingInstance=Thing(path, interfaces)
+      prettyPrint(newThingInstance.characteristics)
+      newThingInstance.startNotify(UUID_NOTIFY_TEST_CHARACTERISTIC)
+      thingsDetected.append(newThingInstance)
+      print("interfaces added -- "*6)
+      now = time.asctime()
+      print("interfaces added: {}".format(now))
+      bus 							= dbus.SystemBus()
+      #prettyPrint(interfaces)
+      #printInfo("NEW -->", newDevice)
+
+      thing 					= bus.get_object( BLUEZ, path)
+      #help(thing)
+      deviceInterface  = dbus.Interface( thing,   IFACE_DEVICE)
+      #deviceProps = thing.GetAll(IFACE_DEVICE, dbus_interface=IFACE_PROPERTIES_DBUS)
+      #print("Device Properties")
+      #prettyPrint(deviceProps)
+      
+      #print("path:", path)
+
+      #thingsDetected.append(Thing(path, interfaces))
+    # print("connect ------------------")
+      deviceInterface.Connect(path, dbus_interface=IFACE_DEVICE)
+      #bus.remove_signal_receiver(signalRemoved, signal_name="InterfacesAdded", dbus_interface = IFACE_OBJECT_MANAGER_DBUS)
+      time.sleep(1)
+      print("connected - connected - "*5)
     
-    #print("path:", path)
+      #printInfo("NEW -->", newDevice)
+      #getChrcsAndServices()
 
-    thingsDetected.append(Thing(path, interfaces))
-   # print("connect ------------------")
-    deviceInterface.Connect(path, dbus_interface=IFACE_DEVICE)
-    #bus.remove_signal_receiver(signalRemoved, signal_name="InterfacesAdded", dbus_interface = IFACE_OBJECT_MANAGER_DBUS)
-    time.sleep(1)
-    print("connected - connected - "*5)
-  
-    #printInfo("NEW -->", newDevice)
-    getChrcsAndServices()
-
-    #print( newDevice["Alias"])
-    #printManagedObjects()
+      #print( newDevice["Alias"])
+      #printManagedObjects()
+  except:
+    print("no interface device")
 
 def getChrcsAndServices():
   om = dbus.Interface(bus.get_object(BLUEZ, '/'), IFACE_OBJECT_MANAGER_DBUS)
   objects = om.GetManagedObjects()
   chrcs = []
-
+  
   # List characteristics found
   for path, interfaces in objects.items():
     if IFACE_GATT_CHARACTERISTIC not in interfaces.keys():
@@ -125,10 +136,15 @@ def getChrcsAndServices():
     service_props = service.GetAll(IFACE_GATT_SERVICE, dbus_interface=IFACE_PROPERTIES_DBUS)
 
     uuid = service_props['UUID']
-    print("service uuid", uuid)
+    print("\n")
+    print("service uuid ", uuid)
+    print("service path ", path)
+    print("characteristics of this service: ")
+    prettyPrint(chrc_paths)
+    print("\n")
 
-  print("List Characteristics #########################################")
-  prettyPrint(chrcs)
+  print("#----"*25)
+  #prettyPrint(chrcs)
 
 def properties_changed(interface, changed, invalidated, path):
   print('properties changed '+'#'*120+ '\n')
@@ -149,6 +165,8 @@ def properties_changed(interface, changed, invalidated, path):
   if aliasFromThingsInTouch(deviceChanged["Alias"]):
     prettyPrint(deviceChanged)
 
+def readValue():
+  thingsDetected[0].readValue(UUID_READ_WRITE_TEST_CHARACTERISTIC)
 
 def printManagedObjects():
   om = dbus.Interface(bus.get_object(BLUEZ , "/"), IFACE_OBJECT_MANAGER_DBUS)
@@ -167,25 +185,37 @@ if __name__ == '__main__':
 
   om = dbus.Interface(bus.get_object(BLUEZ , "/"), IFACE_OBJECT_MANAGER_DBUS)
 
-  objects = om.GetManagedObjects()
-  #prettyPrint(objects)
-  for path, interfaces in objects.items():
-    if "org.bluez.Device1" in interfaces:
-      connectDeviceIfThingsInTouch(path, interfaces)
+  # objects = om.GetManagedObjects()
+  # #prettyPrint(objects)
+  # for path, interfaces in objects.items():
+  #   if "org.bluez.Device1" in interfaces:
+  #     connectDeviceIfThingsInTouch(path, interfaces)
 
   
-  bus.add_signal_receiver(interfaces_added, dbus_interface = IFACE_OBJECT_MANAGER_DBUS, signal_name = "InterfacesAdded")
+  #bus.add_signal_receiver(interfaces_added, dbus_interface = IFACE_OBJECT_MANAGER_DBUS, signal_name = "InterfacesAdded")
   #bus.add_signal_receiver(properties_changed, dbus_interface = "org.freedesktop.DBus.Properties", signal_name = "PropertiesChanged", arg0 = "org.bluez.Device1", path_keyword = "path")
 
 
   scan_filter = dict()
   scan_filter["Transport"] 	= "le"
   #scan_filter['UUIDs'] 			= [UUID_GATESETUP_SERVICE]
-  help(adapter_interface)
+  #help(adapter_interface)
   
   adapter_interface.SetDiscoveryFilter(scan_filter)
   #adapter_interface.SetDiscoveryFilter(scan_filter)
   #adapter_interface.StartDiscovery()
+
+  time.sleep(4)
+
+
+  objects = om.GetManagedObjects()
+  #prettyPrint(objects)
+  for path, interfaces in objects.items():
+    if "org.bluez.Device1" in interfaces:
+      connectDeviceIfThingsInTouch(path, interfaces)
+  
+  GObject.timeout_add(2000, readValue)
+
 
   mainloop = GObject.MainLoop()
   mainloop.run()
