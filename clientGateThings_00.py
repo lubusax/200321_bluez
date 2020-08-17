@@ -185,15 +185,15 @@ if __name__ == '__main__':
 
   om = dbus.Interface(bus.get_object(BLUEZ , "/"), IFACE_OBJECT_MANAGER_DBUS)
 
-  # objects = om.GetManagedObjects()
-  # #prettyPrint(objects)
-  # for path, interfaces in objects.items():
-  #   if "org.bluez.Device1" in interfaces:
-  #     connectDeviceIfThingsInTouch(path, interfaces)
+  objects = om.GetManagedObjects()
+  #prettyPrint(objects)
+  for path, interfaces in objects.items():
+    if "org.bluez.Device1" in interfaces:
+      connectDeviceIfThingsInTouch(path, interfaces)
 
   
-  #bus.add_signal_receiver(interfaces_added, dbus_interface = IFACE_OBJECT_MANAGER_DBUS, signal_name = "InterfacesAdded")
-  #bus.add_signal_receiver(properties_changed, dbus_interface = "org.freedesktop.DBus.Properties", signal_name = "PropertiesChanged", arg0 = "org.bluez.Device1", path_keyword = "path")
+  bus.add_signal_receiver(interfaces_added, dbus_interface = IFACE_OBJECT_MANAGER_DBUS, signal_name = "InterfacesAdded")
+  bus.add_signal_receiver(properties_changed, dbus_interface = "org.freedesktop.DBus.Properties", signal_name = "PropertiesChanged", arg0 = "org.bluez.Device1", path_keyword = "path")
 
 
   scan_filter = dict()
