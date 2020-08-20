@@ -36,6 +36,9 @@ class dBusBluezConnection():
   def __init__(self):
     DBusGMainLoop(set_as_default=True)
 
+    self.dictOfDevices ={}
+    self.flagToExit = False
+
     self.systemBus 	= dbus.SystemBus()
 
     self.hci0 	= self.systemBus.get_object(BLUEZ, PATH_HCI0)
@@ -48,16 +51,20 @@ class dBusBluezConnection():
     self.deleteRegisteredDevices()
     self.ServicesResolved = False
 
-    #self.updateRegisteredDevices()
-
-
     self.listenToPropertiesChanged()
+    self.listenToInterfacesAdded()
 
     self.exitFlag = threading.Event()
     self.exitFlag.clear()
     self.threadMainLoop = threading.Thread(target=self.enterThreadMainLoopGObject, args=(self.exitFlag,))
     self.threadMainLoop.start()
 
+  def discoverThingsInTouchDevices(self):
+    scan_filter = {}
+    scan_filter["Transport"] 	= "le"
+    scan_filter['UUIDs'] 			= [UUID_GATESETUP_SERVICE]
+    self.adapterInterface.SetDiscoveryFilter(scan_filter)
+    self.adapterInterface.StartDiscovery()
 
   def enterThreadMainLoopGObject(self, exitFlag):
     self.mainloop = GObject.MainLoop()
@@ -66,10 +73,6 @@ class dBusBluezConnection():
   def exitThreadMainLoopGobject(self):
     self.mainloop.quit()
     self.threadMainLoop.join()
-
-  
-  # def getManagedObjects(self):
-  #   return  self.objectManagerInterface.GetManagedObjects()
 
   def deleteRegisteredDevices(self):
     for devicePath in self.registeredDevices:
@@ -85,7 +88,6 @@ class dBusBluezConnection():
         deviceAddress = self.registeredDevices[devicePath]["Address"]
         print("Device Address: ",deviceAddress)
         print("Adapter Address: ",adapterAddress)
-        #if str(adapterAddress) == str(deviceAddress):
         adapterInterface = dbus.Interface(adapterObject, IFACE_ADAPTER)
         adapterInterface.RemoveDevice(devicePath)
         print("Device removed - Address: ",deviceAddress)
@@ -168,8 +170,11 @@ class dBusBluezConnection():
     self.updateRegisteredDevices()
     devicePath = path
     for key in changed:
-      if str(key) == "Connected": self.registeredDevices[str(devicePath)]["Connected"] = bool(changed[key])
+      if str(key) == "Connected":
+        self.registeredDevices[str(devicePath)]["Connected"] = bool(changed[key])
+        print("DEVOÌCE CONNECTED - time ellapsed in seconds since asking to connect: ", int(time.time() - self.counterTimeToConnect))
       if str(key) == "ServicesResolved":
+        print("SERVICES RESOLVED - time ellapsed in seconds since asking to connect: ", int(time.time() - self.counterTimeToConnect))
         self.ServicesResolved = True
         servicesResolved =  bool(changed[key])
         self.registeredDevices[str(devicePath)]["ServicesResolved"] =  servicesResolved 
@@ -215,26 +220,28 @@ class dBusBluezConnection():
   def updateRegisteredServices(self,devicePath):
     self.updateCharacteristics()
 
-    # # List services found
-    # for path, interfaces in objects.items():
-    #   if IFACE_GATT_SERVICE not in interfaces.keys():
-    #     continue
-
-    #   chrc_paths = [d for d in chrcs if d.startswith(path + "/")]
-    #   service = bus.get_object(BLUEZ , path)
-    #   service_props = service.GetAll(IFACE_GATT_SERVICE, dbus_interface=IFACE_PROPERTIES_DBUS)
-
-    #   uuid = service_props['UUID']
-    #   print("\n")
-    #   print("service uuid ", uuid)
-    #   print("service path ", path)
-    #   print("characteristics of this service: ")
-    #   prettyPrint(chrc_paths)
-    #   print("\n")
-
-
   def listenToPropertiesChanged(self):
-    self.systemBus.add_signal_receiver(self.propertiesChanged, dbus_interface = IFACE_PROPERTIES_DBUS, signal_name = "PropertiesChanged", arg0 = IFACE_DEVICE, path_keyword = "path")
+    self.systemBus.add_signal_receiver(self.propertiesChanged, dbus_interface = IFACE_PROPERTIES_DBUS,
+                        signal_name = "PropertiesChanged", arg0 = IFACE_DEVICE, path_keyword = "path")
+
+  def listenToInterfacesAdded(self):
+    self.systemBus.add_signal_receiver(self.interfacesAdded, dbus_interface = IFACE_OBJECT_MANAGER_DBUS,
+                        signal_name = "InterfacesAdded")
+
+  def interfacesAdded(self, path, interfaces):
+    try:
+      if interfaces[IFACE_DEVICE]: self.launchThreadForNewDevice(path)
+    except:
+      print("An interface that was not a Device was added :) (interfacesAdded)")
+      print("it happened on path: ", path, "+- # -+ "*15)
+      prettyPrint(interfaces)
+      print("-"*90)
+
+  def launchThreadForNewDevice(self,devicePath):
+    prettyPrint(self.updateRegisteredDevices())
+    self.counterTimeToConnect = time.time()
+    self.connectToDevice(devicePath)
+    #self.flagToExit = True
 
   def aliasFromThingsInTouch(self, alias):
     if alias.startswith(ALIAS_THINGSINTOUCH_BEGINING):
