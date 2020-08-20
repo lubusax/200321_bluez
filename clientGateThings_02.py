@@ -7,6 +7,8 @@ prettyPrint = PrettyPrinter(indent=1).pprint
 
 myBluezConnection = dBusBluezConnection()
 
+while not myBluezConnection.ServicesResolved: time.sleep(0.5)
+
 prettyPrint(myBluezConnection.registeredDevices)
 
 for key in myBluezConnection.registeredDevices:
