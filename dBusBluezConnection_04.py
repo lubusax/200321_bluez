@@ -81,11 +81,13 @@ class dBusBluezConnection():
     connectFilter["Address"]= str(Address)
     connectFilter["AddressType"]= str(AddressType)
     #self.counterTimeToConnect = time.time()
-    print("TIMESTAMP asked to connect (ms): ", self.nowInMilliseconds())
+    print("TIMESTAMP just before asking to connect w/o discovery (ms): ", self.nowInMilliseconds())
     try:
       deviceConnected = self.adapterInterface.ConnectDevice(connectFilter)
+      print("TIMESTAMP just after asking to connect w/o discovery (ms): ", self.nowInMilliseconds())
       prettyPrint(deviceConnected)
     except:
+      print("TIMESTAMP error (ms): ", self.nowInMilliseconds())
       print("some error while connectDeviceWithoutDiscovery")
 
 
@@ -94,6 +96,7 @@ class dBusBluezConnection():
     self.mainloop.run()
 
   def exitThreadMainLoopGobject(self):
+    self.deleteRegisteredDevices()
     self.mainloop.quit()
     self.threadMainLoop.join()
 
@@ -195,21 +198,26 @@ class dBusBluezConnection():
   def propertiesChanged(self, interface, changed, invalidated, path):
     self.updateRegisteredDevices()
     devicePath = path
-    for key in changed:
-      if str(key) == "Connected":
-        self.registeredDevices[str(devicePath)]["Connected"] = bool(changed[dbus.String('Connected')])
-        print("DEVÌCE CONNECTED - time ellapsed in seconds since asking to connect: ", int(time.time() - self.counterTimeToConnect))
-      if str(key) == "ServicesResolved":
-        print("SERVICES RESOLVED - time ellapsed in milliseconds since asking to connect: ", int(1000*(time.time() - self.counterTimeToConnect)))
-        print("SERVICES RESOLVED - timestamp (ms): ", self.nowInMilliseconds())
-        servicesResolved =  bool(changed[key])
-        self.ServicesResolved[path]= servicesResolved
-        self.registeredDevices[str(devicePath)]["ServicesResolved"] =  servicesResolved 
-        self.registeredDevices[str(devicePath)]["Services"] = self.getServicesOfDevice(devicePath)
-        if servicesResolved and self.ensureDeviceKnown(devicePath):
-          self.establishBluetoothConnection(devicePath)
-        else:
-          print ("No Bluetooth Connection Established")
+    try:
+      for key in changed:
+        if str(key) == "Connected":
+          self.registeredDevices[str(devicePath)]["Connected"] = bool(changed[dbus.String('Connected')])
+          print("DEVÌCE CONNECTED - time ellapsed in seconds since asking to connect: ", int(time.time() - self.counterTimeToConnect))
+        if str(key) == "ServicesResolved":
+          print("SERVICES RESOLVED - time ellapsed in milliseconds since asking to connect: ", int(1000*(time.time() - self.counterTimeToConnect)))
+          print("SERVICES RESOLVED - timestamp (ms): ", self.nowInMilliseconds())
+          servicesResolved =  bool(changed[key])
+          self.ServicesResolved[path]= servicesResolved
+          self.registeredDevices[str(devicePath)]["ServicesResolved"] =  servicesResolved 
+          self.registeredDevices[str(devicePath)]["Services"] = self.getServicesOfDevice(devicePath)
+          if servicesResolved and self.ensureDeviceKnown(devicePath):
+            self.establishBluetoothConnection(devicePath)
+          else:
+            print ("No Bluetooth Connection Established")
+    except KeyError:
+      print(f"Device {devicePath} was removed")
+    except:
+      print("error in Properties Changed - Callback Method")
     # print("+#-- "*20)
     # prettyPrint(changed)
 
@@ -224,6 +232,7 @@ class dBusBluezConnection():
 
   def showReadStringValue(self, value):
     valueString = ''.join([str(v) for v in value])
+    print("TIMESTAMP (ms): ", self.nowInMilliseconds())
     print("read Value: ", valueString)
 
   def genericErrorCallback(self, error):
@@ -265,11 +274,12 @@ class dBusBluezConnection():
     try:
       if interfaces[IFACE_DEVICE]: self.launchThreadForNewDevice(path)
     except:
-      # print("An interface that was not a Device was added :) (interfacesAdded)")
-      # print("it happened on path: ", path, "+- # -+ "*15)
-      # prettyPrint(interfaces)
-      # print("-"*90)
-      pass
+      print("TIMESTAMP (ms): ", self.nowInMilliseconds())
+      print("An interface that was not a Device was added :) (interfacesAdded)")
+      print("it happened on path: ", path, "+- # -+ "*15)
+      prettyPrint(interfaces)
+      print("-"*90)
+      #pass
 
   def launchThreadForNewDevice(self,devicePath):
     #prettyPrint(self.updateRegisteredDevices())
