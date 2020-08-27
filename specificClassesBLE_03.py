@@ -26,7 +26,7 @@ UUID_NOTIFY_TEST_CHARACTERISTIC         = '5468696e-6773-496e-546f-756368100001'
 UUID_SERIAL_NUMBER_CHARACTERISTIC       = '5468696e-6773-496e-546f-756368100002'
 UUID_DEVICE_TYPE_CHARACTERISTIC         = '5468696e-6773-496e-546f-756368100003'
 
-DEVICE_NAME = 'ThingsInTouch-Gate-01'
+DEVICE_NAME = 'ThingsInTouch-Gate-69'
 
 class SerialNumberCharacteristic(Characteristic):
     """
@@ -170,4 +170,5 @@ class GateSetupAdvertisement(Advertisement):
         self.add_local_name( DEVICE_NAME)
         self.add_alias( DEVICE_NAME)
         self.include_tx_power = True
+        self.setAdvertisementInterval("90")
 

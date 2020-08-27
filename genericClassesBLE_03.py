@@ -8,6 +8,8 @@ import dbus.service
 from gi.repository import GObject, GLib  # python3
 
 from random import randint
+import os
+import subprocess
 
 from pprint import PrettyPrinter
 
@@ -137,6 +139,30 @@ class Advertisement(dbus.service.Object):
     def registerAdvertisement(self): self.advertising_manager. RegisterAdvertisement ( self.get_path(), {}, reply_handler=self.register_OK, error_handler=self.register_error)
 
     def makeDeviceDiscoverable(self): self.adapter_interface.Discoverable = True
+
+    def setAdvertisementInterval(self,interval):
+        '''
+        interval in units of 1,25ms - 
+        Advertising packets are sent periodically on each advertising channel.
+        The time interval has a fixed interval and a random delay.
+        The interval is specified between the set of 3 packets (and 3 channels are almost always used).
+
+        You can set the fixed interval from 20ms to 10.24 seconds, in steps of 0.625ms.
+        The random delay is a pseudo-random value from 0ms to 10ms that is automatically added. 
+        This randomness helps reduce the possibility of collisions between advertisements of different devices 
+        (if they fell in the same rate, they could interfere more easily).
+        '''
+        os.environ['ADVMININTERVAL'] = interval
+        os.environ['ADVMAXINTERVAL'] = interval
+        self.runShellCommand("echo $ADVMININTERVAL | sudo tee /sys/kernel/debug/bluetooth/hci0/adv_min_interval > /dev/null")
+        self.runShellCommand("echo $ADVMAXINTERVAL | sudo tee /sys/kernel/debug/bluetooth/hci0/adv_max_interval > /dev/null")
+
+    def runShellCommand(self, command):
+        try:
+            completed = subprocess.run(command.split())
+            # print(f'command {command} - returncode: {completed.returncode}')
+        except:
+            print(f"error on method run shell command: {command}")       
 
     def infiniteLoop(self):
         try:

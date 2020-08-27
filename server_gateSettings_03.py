@@ -32,6 +32,7 @@ def changeDeviceHostname(): # the bluetooth device listening reads the DeviceHos
     os.system("invoke-rc.d networking force-reload")
     os.system("invoke-rc.d dhcpcd force-reload")
 
+
 def main():
     #changeDeviceHostname()
     application     = GateSetupApplication()
