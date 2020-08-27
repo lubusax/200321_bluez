@@ -25,19 +25,25 @@ UUID_GATESETUP_SERVICE      				= '5468696e-6773-496e-546f-756368000100'
 ALIAS_THINGSINTOUCH_BEGINING				= 'ThingsInTouch'
 # ThingsInTouch Services        go from 0x001000 to 0x001FFF
 # ThingsInTouch Characteristics go from 0x100000 to 0x1FFFFF
-
 UUID_READ_WRITE_TEST_CHARACTERISTIC = '5468696e-6773-496e-546f-756368100000'
 UUID_NOTIFY_TEST_CHARACTERISTIC     = '5468696e-6773-496e-546f-756368100001'
+UUID_SERIAL_NUMBER_CHARACTERISTIC   = '5468696e-6773-496e-546f-756368100002'
+UUID_DEVICE_TYPE_CHARACTERISTIC     = '5468696e-6773-496e-546f-756368100003'
+
 UUID_BEGIN_THINGSINTOUCH            = '5468696e-6773-496e-546f-756368'
 
 DEVICE_NAME 												= 'ThingsInTouch-Gate-01'
 
 class dBusBluezConnection():
   def __init__(self):
+    self.counterTimeToConnect = time.time()
+    print("TIMESTAMP __init__ class dBusBluezConnection (ms): ", self.nowInMilliseconds())
+
     DBusGMainLoop(set_as_default=True)
 
     self.dictOfDevices ={}
     self.flagToExit = False
+    #self.exitFlag = {}
 
     self.systemBus 	= dbus.SystemBus()
 
@@ -49,7 +55,7 @@ class dBusBluezConnection():
     self.updateRegisteredDevices()
 
     self.deleteRegisteredDevices()
-    self.ServicesResolved = False
+    self.ServicesResolved = {}
 
     self.listenToPropertiesChanged()
     self.listenToInterfacesAdded()
@@ -60,11 +66,28 @@ class dBusBluezConnection():
     self.threadMainLoop.start()
 
   def discoverThingsInTouchDevices(self):
-    scan_filter = {}
-    scan_filter["Transport"] 	= "le"
-    scan_filter['UUIDs'] 			= [UUID_GATESETUP_SERVICE]
-    self.adapterInterface.SetDiscoveryFilter(scan_filter)
+    scanFilter = {}
+    scanFilter["Transport"] 	= "le" 
+    scanFilter['UUIDs'] 			= [UUID_GATESETUP_SERVICE]
+    self.adapterInterface.SetDiscoveryFilter(scanFilter)
     self.adapterInterface.StartDiscovery()
+
+  def nowInMilliseconds(self):
+    t = time.time()
+    return (int((t - int(t/100)*100) *1000))
+
+  def connectDeviceWithoutDiscovery(self,Address, AddressType ="public"):
+    connectFilter ={}
+    connectFilter["Address"]= str(Address)
+    connectFilter["AddressType"]= str(AddressType)
+    #self.counterTimeToConnect = time.time()
+    print("TIMESTAMP asked to connect (ms): ", self.nowInMilliseconds())
+    try:
+      deviceConnected = self.adapterInterface.ConnectDevice(connectFilter)
+      prettyPrint(deviceConnected)
+    except:
+      print("some error while connectDeviceWithoutDiscovery")
+
 
   def enterThreadMainLoopGObject(self, exitFlag):
     self.mainloop = GObject.MainLoop()
@@ -77,6 +100,7 @@ class dBusBluezConnection():
   def deleteRegisteredDevices(self):
     for devicePath in self.registeredDevices:
       self.deleteDevice(devicePath)
+    self.updateRegisteredDevices()
 
   def deleteDevice(self, devicePath):
     self.objects = self.objectManagerInterface.GetManagedObjects()
@@ -104,7 +128,7 @@ class dBusBluezConnection():
         self.registeredDevices[str(path)]= {
           "Alias":            self.alias(path),
           "Address":          str(deviceProperties["Address"]),
-          "Connected":        bool(deviceProperties["Connected"]),
+          #"Connected":        bool(deviceProperties["Connected"]),
           #"Adapter":          deviceProperties["Adapter"],
           "ServicesResolved": False,
           "Services":         None,
@@ -146,14 +170,16 @@ class dBusBluezConnection():
               if c.startswith(str(path)):
                 characteristicObject = self.systemBus.get_object(BLUEZ , c)
                 characteristicProperties = characteristicObject.GetAll(IFACE_GATT_CHARACTERISTIC, dbus_interface=IFACE_PROPERTIES_DBUS)
-                characteristicsOfService[str(c)]= {"UUID": str(characteristicProperties['UUID']),
-                                                  "CharacteristicObject": characteristicObject}
+                characteristicsOfService[str(characteristicProperties['UUID'])]= {
+                              "Path":str(c),
+                              "Value":characteristicProperties['Value'],
+                              "CharacteristicObject": characteristicObject}
             servicesOfDevice[str(uuid)]={"Path":str(path),"ServiceObject": serviceObject,
                                   "Characteristics":characteristicsOfService}
 
-    print("\n")
-    prettyPrint(servicesOfDevice)
-    print("\n")
+    # print("\n")
+    # prettyPrint(servicesOfDevice)
+    # print("\n")
 
     return servicesOfDevice
 
@@ -171,30 +197,37 @@ class dBusBluezConnection():
     devicePath = path
     for key in changed:
       if str(key) == "Connected":
-        self.registeredDevices[str(devicePath)]["Connected"] = bool(changed[key])
-        print("DEVOÌCE CONNECTED - time ellapsed in seconds since asking to connect: ", int(time.time() - self.counterTimeToConnect))
+        self.registeredDevices[str(devicePath)]["Connected"] = bool(changed[dbus.String('Connected')])
+        print("DEVÌCE CONNECTED - time ellapsed in seconds since asking to connect: ", int(time.time() - self.counterTimeToConnect))
       if str(key) == "ServicesResolved":
-        print("SERVICES RESOLVED - time ellapsed in seconds since asking to connect: ", int(time.time() - self.counterTimeToConnect))
-        self.ServicesResolved = True
+        print("SERVICES RESOLVED - time ellapsed in milliseconds since asking to connect: ", int(1000*(time.time() - self.counterTimeToConnect)))
+        print("SERVICES RESOLVED - timestamp (ms): ", self.nowInMilliseconds())
         servicesResolved =  bool(changed[key])
+        self.ServicesResolved[path]= servicesResolved
         self.registeredDevices[str(devicePath)]["ServicesResolved"] =  servicesResolved 
         self.registeredDevices[str(devicePath)]["Services"] = self.getServicesOfDevice(devicePath)
         if servicesResolved and self.ensureDeviceKnown(devicePath):
           self.establishBluetoothConnection(devicePath)
         else:
           print ("No Bluetooth Connection Established")
-    print("+#-- "*20)
-    #print("properties changed -            Alias: ", deviceChanged["Alias"])
-    #print("properties changed - device connected: ", bool(deviceChanged["Connected"]))
-    prettyPrint(changed)
+    # print("+#-- "*20)
+    # prettyPrint(changed)
 
-  def establishBluetoothConnection(self,path):
-    self.registeredDevices[str(path)]["SerialNumber"] = str(self.getSerialNumber(path))
-    pass
+  def establishBluetoothConnection(self,devicePath):
+    self.readCharacteristicStringValue( devicePath, UUID_GATESETUP_SERVICE, UUID_SERIAL_NUMBER_CHARACTERISTIC) # async answer
 
-  def getSerialNumber(self,path):
-    return "007"
 
+  def readCharacteristicStringValue(self,devicePath, uuidService, uuidCharacteristic):
+    characteristicObject = self.registeredDevices[str(devicePath)]["Services"][uuidService]["Characteristics"][uuidCharacteristic]["CharacteristicObject"]
+    characteristicObject.ReadValue({}, reply_handler= self.showReadStringValue,
+        error_handler=self.genericErrorCallback, dbus_interface=IFACE_GATT_CHARACTERISTIC)
+
+  def showReadStringValue(self, value):
+    valueString = ''.join([str(v) for v in value])
+    print("read Value: ", valueString)
+
+  def genericErrorCallback(self, error):
+    print('D-Bus call failed: ' + str(error))
 
   def ensureDeviceKnown(self,path):
     # look into a list of known devices , checking the serial number
@@ -211,10 +244,10 @@ class dBusBluezConnection():
         if IFACE_GATT_CHARACTERISTIC in self.objects[path]:
           characteristics.append(str(path))
 
-    print("\n")
-    prettyPrint(characteristics)   
-    print("\n")
-    
+    # print("\n")
+    # prettyPrint(characteristics)   
+    # print("\n")
+
     return characteristics
 
   def updateRegisteredServices(self,devicePath):
@@ -232,14 +265,15 @@ class dBusBluezConnection():
     try:
       if interfaces[IFACE_DEVICE]: self.launchThreadForNewDevice(path)
     except:
-      print("An interface that was not a Device was added :) (interfacesAdded)")
-      print("it happened on path: ", path, "+- # -+ "*15)
-      prettyPrint(interfaces)
-      print("-"*90)
+      # print("An interface that was not a Device was added :) (interfacesAdded)")
+      # print("it happened on path: ", path, "+- # -+ "*15)
+      # prettyPrint(interfaces)
+      # print("-"*90)
+      pass
 
   def launchThreadForNewDevice(self,devicePath):
-    prettyPrint(self.updateRegisteredDevices())
-    self.counterTimeToConnect = time.time()
+    #prettyPrint(self.updateRegisteredDevices())
+    #self.counterTimeToConnect = time.time()
     self.connectToDevice(devicePath)
     #self.flagToExit = True
 
